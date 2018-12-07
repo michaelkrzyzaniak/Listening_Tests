@@ -5,6 +5,8 @@
   $VIDEO_LOCATION = "video/";
   $COOKIE_NAME = "user_id";
   
+  $MAX_NUM_RESPONSES = 30;
+  
   date_default_timezone_set("UTC");
   
   require_once("include/word_cloud.php");
@@ -445,18 +447,26 @@
  
   /*----------------------------------------------------------*/
   //this is 1-indxed, e.g. it is the current question number, not the number of previous responses
-  function get_user_response_count($db, $table_name)
+  function get_user_response_count($db, $table_name /*ignored*/)
   {
     global $_COOKIE;
     global $COOKIE_NAME;
   
     $result = 0;
   
-    if($table_name == "ranking")
-      $result = $db->querySingle("SELECT COUNT (DISTINCT response_id) as count FROM $table_name WHERE cookie_id='$_COOKIE[$COOKIE_NAME]';");
-    else
-      $result = $db->querySingle("SELECT COUNT(*) as count FROM $table_name WHERE cookie_id='$_COOKIE[$COOKIE_NAME]';");
+    //for a single test
+    //if($table_name == "ranking")
+    //  $result = $db->querySingle("SELECT COUNT (DISTINCT response_id) as count FROM $table_name WHERE cookie_id='$_COOKIE[$COOKIE_NAME]';");
+    //else
+    //  $result = $db->querySingle("SELECT COUNT(*) as count FROM $table_name WHERE cookie_id='$_COOKIE[$COOKIE_NAME]';");
   
+    //for all tests
+  
+    $result += $db->querySingle("SELECT COUNT (DISTINCT response_id) as count FROM ranking WHERE cookie_id='$_COOKIE[$COOKIE_NAME]';");
+    $result += $db->querySingle("SELECT COUNT(*) as count FROM confusion_matrix WHERE cookie_id='$_COOKIE[$COOKIE_NAME]';");
+    $result += $db->querySingle("SELECT COUNT(*) as count FROM discrimination WHERE cookie_id='$_COOKIE[$COOKIE_NAME]';");
+    $result += $db->querySingle("SELECT COUNT(*) as count FROM video_coherence WHERE cookie_id='$_COOKIE[$COOKIE_NAME]';");
+    $result += $db->querySingle("SELECT COUNT(*) as count FROM word_cloud WHERE cookie_id='$_COOKIE[$COOKIE_NAME]';");
     return $result + 1;
   }
   
@@ -469,10 +479,27 @@
   }
 
   /*----------------------------------------------------------*/
-  function redirict_if_session_finished($response_count, $max_responses, $redirect)
+  function redirect_to_another_test($response_count, $max_responses)
   {
-    if($response_count > $max_responses)
-      header("Location: $redirect");
+    $pages = array();
+    $pages[] = "classification.php";
+    $pages[] = "discrimination.php";
+    $pages[] = "ranking.php";
+    $pages[] = "video_coherence.php";
+    $pages[] = "word_cloud.php";
+  
+    $target = "session_finished.php";
+  
+    $current = basename($_SERVER['PHP_SELF']);
+  
+    if($response_count < $max_responses)
+      do{
+          $target = $pages[array_rand($pages)];
+         }while($current == $target);
+  
+    //echo("Location: $target");
+  
+    header("Location: $target");
   }
   
   /*----------------------------------------------------------*/
@@ -520,14 +547,18 @@
     echo "  var $javascript_name = new Audio_File_Player('$file_path', '$name', true, false);";
     echo "  $javascript_name.set_gain(1);";
     echo "</script>";
+    //global_audio_did_play js variable is defined in print_submit_button below
+    //(cannot submit form unless audio was played).
+    //This dosen't work so well for sliders, but we can still tell if they adjusted the sliders
+    //and we know how long they spent on the page.
     if($control_type == "buttons")
       {
-        echo "<button type='button' onclick='$javascript_name.play();'>Play Audio</button>";
+        echo "<button type='button' onclick='$javascript_name.play(); global_audio_did_play=true;'>Play Audio</button>";
         echo "<button type='button' onclick='$javascript_name.stop();'>Stop Audio</button>";
       }
     else if($control_type == "slider")
       {
-        echo "<input class='unselected' type='range' min='0' max='1' step='0.01' value='0.5' name='user_responses[$name]' onmouseover='$javascript_name.play(); this.className=\"selected\"' onmouseout='$javascript_name.stop();this.className=\"unselected\"'>";
+        echo "<input class='unselected' type='range' min='0' max='1' step='0.01' value='0.5' name='user_responses[$name]' onmouseover='$javascript_name.play(); global_audio_did_play=true;  this.className=\"selected\"' onmouseout='$javascript_name.stop();this.className=\"unselected\"' ontouchstart='this.onmouseover()' ontouchend='this.onmouseout()'>";
         echo "<input type='hidden' name='audio_file_paths[$name]' value='$file_path'>";
         echo "<input type='hidden' name='audio_basenames[$name]' value='$file_basename'>";
       }
@@ -561,7 +592,10 @@
     echo "<button type='button' onclick='$a_js_name_2.stop(); $a_js_name_1.stop(); $v_js_name.stop();'>Stop</button>";
     //echo "</div>";
   
-    echo "<video id='$v_name' width='100%' height='auto'></video>";
+    //we are using images instead of video. The difference is handled in Video_File_Player.js
+    //js variable global_audio_did_play defined in the php print_submit_button function below
+    //echo "<video id='$v_name' width='100%' height='auto'></video>";
+    echo "<div id='$v_name' width='100%' height='auto'></div>";
     echo "<script>";
     echo "  var $v_js_name = new Video_File_Player('$v_path', '$v_name');";
     echo "  function play_one_audio_and_stop_the_other(play, stop, video)";
@@ -570,6 +604,7 @@
     echo "      video.play();";
     echo "     stop.stop();";
     echo "     play.play();";
+    echo "     global_audio_did_play = true;";
     echo "  }";
     echo "</script>";
   }
@@ -594,13 +629,13 @@
   }
 
   /*----------------------------------------------------------*/
-  function get_directory_listing($dir, $files_type)
+  function get_directory_listing($dir, $files_type, $glob="*")
   {
     $filter = ($files_type == "directories") ? "is_dir" : "is_file";
   
     if(substr($dir, -1) != "/")
       $dir .= "/";
-    $paths = array_filter(glob($dir . "*"), $filter);
+    $paths = array_filter(glob($dir . $glob), $filter);
     $listing = array();
     foreach($paths as $path)
       $listing[] = basename($path);
@@ -690,7 +725,7 @@
   function get_audio_files($audio_class_name, $synth_method)
   {
     global $AUDIO_LOCATION;
-    return get_directory_listing($AUDIO_LOCATION . $audio_class_name . "/" . $synth_method, "files");
+    return get_directory_listing($AUDIO_LOCATION . $audio_class_name . "/" . $synth_method, "files", "*.wav");
   }
 
   /*----------------------------------------------------------*/
@@ -811,11 +846,33 @@
   {
     $options = array();
     $options[] = "Real";
-    $options[] = "Synthetic";
+    $options[] = "Synthesized";
   
     echo "<div style='width:300px; margin:auto;'>";
     print_radio_buttons($options);
     echo "</div>";
+  }
+  
+  /*----------------------------------------------------------*/
+  function print_submit_button()
+  {
+    // the global_audio_did_play will be set to true in the script defined in
+    // make_audio_player above
+    // or make_video_player_with_2_sources above
+    echo "<script>";
+    echo "var global_audio_did_play = false;\r\n";
+    echo "function check_audio_did_play(e)\r\n";
+    echo "{\r\n";
+    echo "if(!global_audio_did_play){\r\n";
+    echo "  alert('Please listen to the audio before continuing');\r\n";
+    echo "  e = e || window.event;\r\n";
+    echo "  e.preventDefault();\r\n";
+    echo "  return false\r\n";
+    echo "}";
+    echo "else {return true;}";
+    echo "}";
+    echo "</script>";
+    echo "<button type='submit' onclick='check_audio_did_play(event)'>Save and Continue</button>";
   }
   
   /*----------------------------------------------------------*/
@@ -966,7 +1023,7 @@
     echo "</select>";
     echo "</div>";
   }
-  
+
   /*----------------------------------------------------------*/
   function print_response_management_form($default_1, $default_2)
   {

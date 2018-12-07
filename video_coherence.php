@@ -5,17 +5,15 @@
   make_cookie_if_necessary();
   
   $db = open_db();
-
+  $RESPONSE_COUNT    = get_user_response_count($db, "video_coherence");
+  
   switch(get_param("action"))
     {
       case "submitted_answer":
         save_video_coherence_response($db);
+        redirect_to_another_test($RESPONSE_COUNT, $MAX_NUM_RESPONSES);
       default: break;
     }
-
-  $MAX_NUM_RESPONSES = 30;
-  $RESPONSE_COUNT    = get_user_response_count($db, "video_coherence");
-  redirict_if_session_finished($RESPONSE_COUNT, $MAX_NUM_RESPONSES, "session_finished.php");
 
   close_db($db);
 
@@ -41,7 +39,7 @@
   
   print_top_of_page("Ambisynth Listening and Watching Test");
   print_user_response_count($RESPONSE_COUNT, $MAX_NUM_RESPONSES);
-  echo "<br>Watch the video with both audio tracks and select which one matches the video.";
+  echo "<br>Listen to both audio tracks and select which one goes better with the image.<br>Clicking a radio button will cause the audio to play.";
 ?>
 
 <form method="post" action="<?php echo $_SERVER['PHP_SELF']; ?>">
@@ -60,8 +58,7 @@
   <input type="hidden" name="start_epoch"      value="<?php echo obfuscate(strval(time())) ?>">
 
   <?php make_video_player_with_2_sources("video_player", $audio_path_1, $audio_path_2, $video_path); ?>
-
-  <button type="submit">Save and Continue</button>
+  <?php print_submit_button() ?>
 </form>
 
 <!-- style>

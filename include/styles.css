@@ -374,4 +374,5 @@ label
 .select_with_label select
 {
   min-width:250px;
+  max-width: 585px;
 }

@@ -5,17 +5,16 @@
   make_cookie_if_necessary();
   
   $db = open_db();
-
+  $RESPONSE_COUNT    = get_user_response_count($db, "word_cloud");
+  
   switch(get_param("action"))
     {
       case "submitted_answer":
         save_word_cloud_response($db);
+        redirect_to_another_test($RESPONSE_COUNT, $MAX_NUM_RESPONSES);
       default: break;
     }
-  
-  $MAX_NUM_RESPONSES = 30;
-  $RESPONSE_COUNT    = get_user_response_count($db, "word_cloud");
-  redirict_if_session_finished($RESPONSE_COUNT, $MAX_NUM_RESPONSES, "session_finished.php");
+
   close_db($db);
 
   $audio_class    = get_random_audio_class();
@@ -42,7 +41,7 @@
   <input type="hidden" name="audio_path" value="<?php echo obfuscate($audio_path) ?>">
   <input type="hidden" name="start_epoch" value="<?php echo obfuscate(strval(time())) ?>">
   <input type="text" name="user_response" required autofocus></input>
-  <button type="submit">Save and Continue</button>
+  <?php print_submit_button() ?>
 </form>
 
 <?php print_botom_of_page(); ?>

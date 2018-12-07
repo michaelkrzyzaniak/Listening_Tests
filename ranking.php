@@ -5,19 +5,16 @@
   make_cookie_if_necessary();
   
   $db = open_db();
-
+  $RESPONSE_COUNT    = get_user_response_count($db, "ranking");
+  
   switch(get_param("action"))
     {
       case "submitted_answer":
         save_ranking_response($db);
+        redirect_to_another_test($RESPONSE_COUNT, $MAX_NUM_RESPONSES);
       default: break;
     }
   
-
-  
-  $MAX_NUM_RESPONSES = 30;
-  $RESPONSE_COUNT    = get_user_response_count($db, "ranking");
-  redirict_if_session_finished($RESPONSE_COUNT, $MAX_NUM_RESPONSES, "session_finished.php");
   close_db($db);
 
   $available_synth_methods = get_synth_methods_string($audio_class);
@@ -35,12 +32,12 @@
   print_top_of_page("Ambisynth Listening Test 3");
   print_user_response_count($RESPONSE_COUNT, $MAX_NUM_RESPONSES);
   
-  echo "<br>Move the sliders to rate how glitchy or realistic the following audio files sound.<br><br>";
+  echo "<br>Move the sliders to rate how synthesized or realistic the audio files sound. Touch or hover over the sliders to hear the audio.<br><br>";
   
   $loc = $_SERVER['PHP_SELF'];
   echo "<form method='post' action='$loc'>";
 
-  echo "<span style='float:left'><b>SYNTHETIC</b></span><span style='float:right'><b>REALISTIC</b></span>";
+  echo "<span style='float:left'><b>SYNTHESIZED</b></span><span style='float:right'><b>REALISTIC</b></span>";
   foreach($audio_basenames as $synth_method => $audio_basename)
     {
       $audio_path = get_audio_file_path($audio_class, $synth_method, $audio_basename);
@@ -55,7 +52,7 @@
   <input type="hidden" name="audio_basename" value="<?php echo obfuscate($audio_basename) ?>">
   <input type="hidden" name="available_synth_methods" value="<?php echo obfuscate($available_synth_methods) ?>">
   <input type="hidden" name="start_epoch" value="<?php echo obfuscate(strval(time())) ?>">
-  <button type="submit">Save and Continue</button>
+  <?php print_submit_button() ?>
 </form>
 
 <?php print_botom_of_page(); ?>
