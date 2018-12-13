@@ -266,7 +266,8 @@ button:hover{
   height: 50px;
 }
 
-.radio_container ul li input[type=radio]{
+.radio_container ul li input[type=radio],
+.radio_container ul li input[type=checkbox]{
   position: absolute;
   visibility: hidden;
   display:none;
@@ -322,15 +323,21 @@ button:hover{
   -webkit-transition: background .1s linear;
 }
 
-.radio_container input[type=radio]:checked ~ .check {
+.radio_container input[type=radio]:checked ~ .check,
+.radio_container input[type=checkbox]:checked ~ .check
+{
   border: 5px solid #3071a9;
 }
 
-.radio_container input[type=radio]:checked ~ .check::before{
+.radio_container input[type=radio]:checked ~ .check::before,
+.radio_container input[type=checkbox]:checked ~ .check::before
+{
   background: #3071a9;
 }
 
-.radio_container input[type=radio]:checked ~ label{
+.radio_container input[type=radio]:checked ~ label,
+.radio_container input[type=checkbox]:checked ~ label
+{
   color: #3071a9;
 }
 

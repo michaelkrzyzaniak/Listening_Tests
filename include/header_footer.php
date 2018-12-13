@@ -26,7 +26,7 @@
           </small>
           <br /><br />
 -->
-<span style="position:absolute;"><a href="index.php" style="text-decoration:none">&emsp;</a></span>
+<!--span style="position:absolute;"><a href="index.php" style="text-decoration:none">&emsp;</a></span-->
           <div class="interface_div">
     <?php
    }

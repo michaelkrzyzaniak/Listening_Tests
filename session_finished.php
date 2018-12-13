@@ -4,8 +4,14 @@
   delete_cookie();
    
   print_top_of_page("Thank You!");
-  echo "The session is finished and your answers have been saved.<br />";
-  echo "<a href='classification.php'>Start Over</a>";
+  echo "<h1>Thank You!</h1>";
+  echo "<br>";
+  echo "You are done, and your answers have been saved.<br />";
+  echo "Your participation is invaluable to the researchers.<br />";
+  echo "We appreciate your help.<br /><br />";
+  echo "<a href='https://www.google.com/search?q=flowers&tbm=isch'>Here, have some flowers.</a>";
+  echo "<br>";
+  echo "<a href='questionnaire.php'>Or take the test again</a>";
   
   print_botom_of_page();
 ?>

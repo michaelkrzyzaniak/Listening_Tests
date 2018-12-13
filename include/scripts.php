@@ -58,6 +58,22 @@
   /*----------------------------------------------------------*/
   function initalize_db($db)
   {
+    $str  = "CREATE TABLE IF NOT EXISTS 'questionnaire'(";
+    $str .= "id INTEGER PRIMARY KEY AUTOINCREMENT,";
+    $str .= "cookie_id TEXT,";
+    $str .= "speaker_setup TEXT,";
+    $str .= "is_sound_designer TEXT,";
+    $str .= "is_hearing_impared TEXT,";
+    $str .= "has_musical_training TEXT,";
+    $str .= "is_noisy_environment TEXT,";
+    $str .= "start_epoch TEXT,";
+    $str .= "end_epoch TEXT,";
+    $str .= "duration TEXT"; //comma
+    $str .= ");";
+    $db->exec($str);
+    /* make sure there is only one questionairre response per cookie id */
+    $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_title_cookie_id ON questionnaire (cookie_id);");
+  
     $str  = "CREATE TABLE IF NOT EXISTS 'confusion_matrix'(";
     $str .= "id INTEGER PRIMARY KEY AUTOINCREMENT,";
     $str .= "cookie_id TEXT,";
@@ -445,6 +461,79 @@
     $stmt->execute();
   }
  
+   /*----------------------------------------------------------*/
+  function save_questionnaire($db)
+  {
+    global $_COOKIE;
+    global $COOKIE_NAME;
+    /* The same user shouldn't end up back on the questionanaire page */
+    /* unless they really go hawire on the back button */
+    /* In which case we'll just keep the most recent response */
+    $str  = "INSERT OR REPLACE INTO questionnaire (";
+    $str .= "cookie_id,";
+    $str .= "speaker_setup,";
+    $str .= "is_sound_designer,";
+    $str .= "is_hearing_impared,";
+    $str .= "has_musical_training,";
+    $str .= "is_noisy_environment,";
+    $str .= "start_epoch,";
+    $str .= "end_epoch,";
+    $str .= "duration"; //comma
+    $str .= ") VALUES (";
+
+    $str .= ":cookie_id,";
+    $str .= ":speaker_setup,";
+    $str .= ":is_sound_designer,";
+    $str .= ":is_hearing_impared,";
+    $str .= ":has_musical_training,";
+    $str .= ":is_noisy_environment,";
+    $str .= ":start_epoch,";
+    $str .= ":end_epoch,";
+    $str .= ":duration"; //comma
+    $str .= ");";
+
+    $stmt = $db->prepare($str);
+
+    $speaker_setup         = get_param("speaker_setup");
+    $valid_speaker_setups = ["earbuds", "headphones", "phone_tablet_internal_speakers", "laptop_desktop_internal_speakers", "exernal_speakers", "car_stereo", "hifi_speakers", "studio_monitors"];
+    if(!in_array($speaker_setup, $valid_speaker_setups))
+      $speaker_setup = "invalid_speaker_setup";
+  
+    $is_sound_designer     = isset($_POST['is_sound_designer'])    ? "true" : "false";
+    $is_hearing_impared    = isset($_POST['is_hearing_impared'])   ? "true" : "false";
+    $has_musical_training  = isset($_POST['has_musical_training']) ? "true" : "false";
+    $is_noisy_environment  = isset($_POST['is_noisy_environment']) ? "true" : "false";
+  
+    $start_epoch           = get_param("start_epoch");
+    $end_epoch             = strval(time());
+    $duration              = get_duration($start_epoch, $end_epoch);
+  
+    $stmt->bindValue(':cookie_id'              , $_COOKIE[$COOKIE_NAME]     , SQLITE3_TEXT);
+    $stmt->bindValue(':speaker_setup'          , $speaker_setup             , SQLITE3_TEXT);
+    $stmt->bindValue(':is_sound_designer'      , $is_sound_designer         , SQLITE3_TEXT);
+    $stmt->bindValue(':is_hearing_impared'     , $is_hearing_impared        , SQLITE3_TEXT);
+    $stmt->bindValue(':has_musical_training'   , $has_musical_training      , SQLITE3_TEXT);
+    $stmt->bindValue(':is_noisy_environment'   , $is_noisy_environment      , SQLITE3_TEXT);
+    $stmt->bindValue(':start_epoch'            , $start_epoch               , SQLITE3_TEXT);
+    $stmt->bindValue(':end_epoch'              , $end_epoch                 , SQLITE3_TEXT);
+    $stmt->bindValue(':duration'               , $duration                  , SQLITE3_TEXT);
+
+    $stmt->execute();
+  
+  }
+
+  /*----------------------------------------------------------*/
+  //this is 1-indxed, e.g. it is the current question number, not the number of previous responses
+  function user_has_completed_questionnaire($db)
+  {
+    global $_COOKIE;
+    global $COOKIE_NAME;
+
+    $result += $db->querySingle("SELECT id FROM questionnaire WHERE cookie_id='$_COOKIE[$COOKIE_NAME]';");
+  
+    return $result > 0;
+  }
+
   /*----------------------------------------------------------*/
   //this is 1-indxed, e.g. it is the current question number, not the number of previous responses
   function get_user_response_count($db, $table_name /*ignored*/)
@@ -494,10 +583,9 @@
   
     if($response_count < $max_responses)
       do{
-          $target = $pages[array_rand($pages)];
+          $i = rand(0, count($pages) - 1);
+          $target = $pages[$i];
          }while($current == $target);
-  
-    //echo("Location: $target");
   
     header("Location: $target");
   }
